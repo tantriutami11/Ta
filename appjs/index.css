@@ -1,0 +1,49 @@
+header{
+    height: 120px;
+    background-color: #6AADD9;
+}
+
+.header{
+    padding-top: 15px;  
+}
+
+.logo-del{
+    width: 90px;
+    height: 90px;
+    margin-left: 50px;
+    display: flex;
+}
+
+.text-header{
+    display: flex;
+    padding-top: 25px;
+    align-content: center;
+    padding-left: 50px;
+    font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+    color: rgb(238, 245, 250);
+}
+
+.left-right{
+    padding-top: 70px;
+  
+}
+
+.content-parameter{
+    background-color: rgb(225, 240, 247);
+    width: 550px;
+    height: 250px;
+    align-content: center;
+    border-radius: 15px;
+    
+}
+
+.content-panel{
+    background-color:rgb(225, 240, 247);
+    align-items: center;
+    width: 550px;
+    height: 250px;
+    align-content: center;
+    border-radius: 15px;
+}
+
+
