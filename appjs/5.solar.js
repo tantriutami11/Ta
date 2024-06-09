@@ -1,187 +1,167 @@
-// Mendapatkan elemen canvas berdasarkan ID
-var temperatureChart = document.getElementById("temperatur-solar");
-var currentChart = document.getElementById("current");
-var voltageChart = document.getElementById("voltage");
+document.addEventListener("DOMContentLoaded", function() {
+  // Mendapatkan elemen chart
+  var solarChart = document.getElementById("temperatur-solar");
+  var currentChart = document.getElementById("current");
+  var voltageChart = document.getElementById("voltage");
 
-// Mendefinisikan data untuk 1 hari, 1 minggu, dan 1 bulan
-var dataOneDay = {
-  labels: ['08.00', '09.00', '10.00', '11.00', '12.00', '13.00', '14.00', '15.00'],
-  datasets: [{
-    label: 'Temperature',
-    data: [50, 60, 55, 60, 75, 70, 63],
-    borderColor: "rgb(240,230,140)",
-    backgroundColor: "rgb(218,165,32)",
-    fill: false
-  }]
-};
+  // Mendapatkan referensi ke tombol-tombol
+  var dayButton = document.getElementById("day");
+  var weekButton = document.getElementById("week");
+  var monthButton = document.getElementById("month");
+  var downloadButton = document.querySelector(".button-download-solar");
 
-var dataOneWeek = {
-  labels: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
-  datasets: [{
-    label: 'Temperature',
-    data: [50, 60, 55, 60, 75, 70, 63],
-    borderColor: "rgb(240,230,140)",
-    backgroundColor: "rgb(218,165,32)",
-    fill: false
-  }]
-};
+  // Mendefinisikan lineChart
+  var solarLineChart;
+  var currentLineChart;
+  var voltageLineChart;
 
-var dataOneMonth = {
-  labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
-  datasets: [{
-    label: 'Temperature',
-    data: [50, 60, 55, 60], // Data untuk 1 bulan
-    borderColor: "rgb(240,230,140)",
-    backgroundColor: "rgb(218,165,32)",
-    fill: false
-  }]
-};
+  // Membuat line chart saat halaman dimuat pertama kali dengan data satu hari
+  solarLineChart = createChart(solarChart, [], [], 'Temperature', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
+  currentLineChart = createChart(currentChart, [], [], 'Current', 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
+  voltageLineChart = createChart(voltageChart, [], [], 'Voltage', 'rgba(75, 192, 192, 0.2)', 'rgba(75, 192, 192, 1)');
 
-// Membuat grafik temperature
-var temperatureLineChart = new Chart(temperatureChart, {
-  type: 'line',
-  data: {
-    labels: dataOneDay.labels,
-    datasets: dataOneDay.datasets,
-  },
-  options: {
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: '\u2103'
+  // Memperbarui grafik untuk menampilkan data satu hari saat halaman dimuat
+  fetchDataAndUpdateChart('day');
+
+  // Fungsi untuk mengambil data dari backend dan memperbarui grafik
+  function fetchDataAndUpdateChart(interval) {
+    var apiUrl = '';
+    if (interval === 'day') {
+      apiUrl = 'http://localhost:3000/api/v1/multisensor/day'; // Ganti dengan endpoint untuk data harian
+    } else if (interval === 'week') {
+      apiUrl = 'http://localhost:3000/api/v1/multisensor/week'; // Ganti dengan endpoint untuk data mingguan
+    } else if (interval === 'month') {
+      apiUrl = 'http://localhost:3000/api/v1/multisensor/month'; // Ganti dengan endpoint untuk data bulanan
+    }
+
+    fetch(apiUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Membuat array untuk menampung data sensor dari database
+        var temperatureData = [];
+        var currentData = [];
+        var voltageData = [];
+        var labelsArray = [];
+
+        // Memfilter data untuk hanya mengambil nilai sensor
+        data.response.forEach(entry => {
+          if (interval === 'day') {
+            var time = new Date(entry.waktu);
+            var formattedTime = time.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
+            labelsArray.push(formattedTime);
+            temperatureData.push(entry.sensor_suhu_baterai);
+            currentData.push(entry.sensor_arus);
+            voltageData.push(entry.sensor_tegangan);
+          } else if (interval === 'week') {
+            var time = new Date(entry.min_waktu);
+            var formattedTime = time.toLocaleDateString('en-US', {day: 'numeric', month: 'short'});
+            labelsArray.push(formattedTime);
+            temperatureData.push(entry.sensor_suhu_baterai_avg);
+            currentData.push(entry.sensor_arus_avg);
+            voltageData.push(entry.sensor_tegangan_avg);
+          } else if (interval === 'month') {
+            // Menggunakan tanggal bulan sebagai label
+            var date = new Date(entry.min_waktu);
+            var monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+            labelsArray.push(monthYear);
+            temperatureData.push(entry.sensor_suhu_baterai_avg);
+            currentData.push(entry.sensor_arus_avg);
+            voltageData.push(entry.sensor_tegangan_avg);
+          }
+        });
+
+        // Update chart dengan data
+        updateChart(solarLineChart, labelsArray, temperatureData);
+        updateChart(currentLineChart, labelsArray, currentData);
+        updateChart(voltageLineChart, labelsArray, voltageData);
+      })
+      .catch(error => console.error('Error fetching data:', error.message));
+  }
+
+  // Fungsi untuk membuat grafik
+  function createChart(ctx, labels, data, label, backgroundColor, borderColor) {
+    return new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: label,
+          data: data,
+          fill: true,
+          backgroundColor: backgroundColor,
+          borderColor: borderColor,
+          tension: 0.1,
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: label
+            }
+          },
         }
       }
-    }
-  }
-});
-
-// Membuat grafik Current
-var currentLineChart = new Chart(currentChart, {
-  type: "line",
-  data: {
-    labels: dataOneDay.labels,
-    datasets: [{
-      label: 'Current',
-      data: [50, 60, 55, 60, 75, 70, 63],
-      borderColor: "rgb(135,206,235)",
-      backgroundColor: "rgb(70,130,180)",
-      fill: false
-    }]
-  },
-  options: {
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'A'
-        }
-      }
-    }
-  }
-});
-
-// Membuat grafik voltage
-var voltageLineChart = new Chart(voltageChart, {
-  type: "line",
-  data: {
-    labels: dataOneDay.labels,
-    datasets: [{
-      label: 'Voltage',
-      data: [5.03, 60, 55, 60, 75, 70, 63],
-      borderColor: "rgb(245,222,179)",
-      backgroundColor: "rgb(210,105,30)",
-      fill: false
-    }]
-  },
-  options: {
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'V'
-        }
-      }
-    }
-  }
-});
-
-// Fungsi untuk mengubah data grafik berdasarkan tombol yang ditekan
-function updateChart(chart, data) {
-  chart.data.labels = data.labels;
-  chart.data.datasets[0].data = data.datasets[0].data;
-  chart.update();
-}
-
-// Menambahkan event listener untuk tombol "daily"
-document.getElementById("day").addEventListener("click", function() {
-  updateChart(temperatureLineChart, dataOneDay);
-  updateChart(currentLineChart, dataOneDay);
-  updateChart(voltageLineChart, dataOneDay);
-});
-
-// Menambahkan event listener untuk tombol "weekly"
-document.getElementById("week").addEventListener("click", function() {
-  updateChart(temperatureLineChart, dataOneWeek);
-  updateChart(currentLineChart, dataOneWeek);
-  updateChart(voltageLineChart, dataOneWeek);
-});
-
-// Menambahkan event listener untuk tombol "monthly"
-document.getElementById("month").addEventListener("click", function() {
-  updateChart(temperatureLineChart, dataOneMonth);
-  updateChart(currentLineChart, dataOneMonth);
-  updateChart(voltageLineChart, dataOneMonth);
-});
-
-// Fungsi untuk mengunduh data dalam format Excel
-function downloadData() {
-  // Mendefinisikan label untuk file CSV
-  var csvContent = "Waktu,Monitoring Temperatur,Monitoring Arus,Monitoring Voltage\n";
-
-  // Mendapatkan data untuk grafik temperatur
-  var temperatureData = temperatureLineChart.data;
-
-  // Mendapatkan data untuk grafik current
-  var currentData = currentLineChart.data;
-
-  // Mendapatkan data untuk grafik voltage
-  var voltageData = voltageLineChart.data;
-
-  // Mendapatkan label waktu
-  var labels = temperatureData.labels;
-
-  // Mendapatkan data untuk masing-masing grafik
-  var temperatureValues = temperatureData.datasets[0].data;
-  var currentValues = currentData.datasets[0].data;
-  var voltageValues = voltageData.datasets[0].data;
-
-  // Menggabungkan data ke dalam format CSV
-  for (var i = 0; i < labels.length; i++) {
-    csvContent += labels[i] + "," + temperatureValues[i] + "," + currentValues[i] + "," + voltageValues[i] + "\n";
+    });
   }
 
-  // Membuat objek Blob
-  var blob = new Blob([csvContent], { type: 'text/csv' });
+  // Fungsi untuk mengubah data grafik
+  function updateChart(chart, labels, data) {
+    // Update data pada chart dengan data yang baru
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
 
-  // Membuat URL objek Blob
-  var url = URL.createObjectURL(blob);
+    // Update grafik
+    chart.update();
+  }
 
-  // Membuat link untuk mengunduh data
-  var link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", "parameters_of_solar_panel.csv");
+  // Menambahkan event listener untuk tombol "daily"
+  dayButton.addEventListener("click", function() {
+    fetchDataAndUpdateChart('day');
+  });
 
-  // Menambahkan link ke dalam dokumen dan mengkliknya secara otomatis
-  document.body.appendChild(link);
-  link.click();
+  // Menambahkan event listener untuk tombol "weekly"
+  weekButton.addEventListener("click", function() {
+    fetchDataAndUpdateChart('week');
+  });
 
-  // Membersihkan URL objek Blob setelah pengunduhan selesai
-  URL.revokeObjectURL(url);
-}
+  // Menambahkan event listener untuk tombol "monthly"
+  monthButton.addEventListener("click", function() {
+    fetchDataAndUpdateChart('month');
+  });
 
-// Menambahkan event listener untuk tombol "Download"
-document.querySelector(".button-download-solar").addEventListener("click", downloadData);
+  // Fungsi untuk mengunduh data dalam format Excel
+  function downloadData(data) {
+    // Mendefinisikan label untuk file CSV
+    var csvLabels = "Waktu,Hasil Pengukuran\n";
+
+    // Mendefinisikan data untuk file CSV
+    var csvData = data.labels.map((label, index) => {
+      return label + "," + data.datasets[0].data[index];
+    }).join("\n");
+
+    // Gabungkan label dan data CSV
+    var csvContent = "data:text/csv;charset=utf-8," + csvLabels + csvData;
+
+    // Proses membuat file Excel dan mengunduhnya
+    var encodedUri = encodeURI(csvContent);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "solar_data.csv");
+    document.body.appendChild(link); // Required for FF
+
+    link.click();
+  }
+
+  // Menambahkan event listener untuk tombol "Download"
+  downloadButton.addEventListener("click", function() {
+    downloadData(solarLineChart.data);
+  });
+});

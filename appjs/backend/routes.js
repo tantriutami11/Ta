@@ -6,6 +6,9 @@ const connection = require('../config/mysql');
 const multisensorController = require('./contoller1')
 
 router.get('/multisensor', multisensorController.index);
+router.get('/multisensor/day', multisensorController.day);
+router.get('/multisensor/week', multisensorController.week);
+router.get('/multisensor/month', multisensorController.month);
 
 // Mendefinisikan rute HTTP GET untuk path '/'
 // router.get('/multisensor', (req, res, next) => {
